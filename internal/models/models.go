@@ -9,7 +9,7 @@ type Product struct {
 	Stock int // количество на складе
 }
 
-type Customer struct {
+type User struct {
 	ID    int
 	Name  string
 	Email string

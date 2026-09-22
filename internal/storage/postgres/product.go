@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"go-pet-shop/internal/models"
-)
+	"go-pet-shop/internal/storage"
 
-var (
-	ErrNotFound     = errors.New("not found")
-	ErrInvalidInput = errors.New("invalid input")
+	"github.com/jackc/pgx/v5"
 )
 
 // ❗ Памятка - Контекст не должен создаваться через context.Background() внутри методов.
@@ -43,6 +41,20 @@ func (s *Storage) GetAllProducts(ctx context.Context) ([]models.Product, error) 
 	return products, nil
 }
 
+func (s *Storage) GetProductByID(ctx context.Context, id int) (models.Product, error) {
+	const fn = "storage.postgres.product.GetProductByID"
+
+	var product models.Product
+	if err := s.db.QueryRow(ctx, `SELECT id, name, price, stock FROM products WHERE id = $1`, id).Scan(&product.ID, &product.Name, &product.Price, &product.Stock); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Product{}, storage.ErrNotFound
+		}
+		return models.Product{}, fmt.Errorf("%s: %w", fn, err)
+	}
+
+	return product, nil
+}
+
 // CreateProduct - создает продукт и возвращает его ID
 func (s *Storage) CreateProduct(ctx context.Context, p models.Product) (int, error) {
 	const fn = "storage.postgres.product.CreateProduct"
@@ -71,7 +83,7 @@ func (s *Storage) DeleteProduct(ctx context.Context, id int) error {
 	}
 
 	if cmd.RowsAffected() == 0 {
-		return fmt.Errorf("%s: %w: id=%d", fn, ErrNotFound, id)
+		return fmt.Errorf("%s: %w: id=%d", fn, storage.ErrNotFound, id)
 	}
 
 	return nil
@@ -89,7 +101,7 @@ func (s *Storage) UpdateProduct(ctx context.Context, p models.Product) error {
 	}
 
 	if cmd.RowsAffected() == 0 {
-		return fmt.Errorf("%s: %w: id=%d", fn, ErrNotFound, p.ID)
+		return fmt.Errorf("%s: %w: id=%d", fn, storage.ErrNotFound, p.ID)
 	}
 
 	return nil

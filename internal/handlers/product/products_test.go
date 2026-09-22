@@ -5,6 +5,7 @@ import (
 	"errors"
 	"go-pet-shop/internal/handlers/product/mocks"
 	"go-pet-shop/internal/models"
+	"go-pet-shop/internal/storage"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -52,6 +53,65 @@ func TestGetAllProducts_Error(t *testing.T) {
 }
 
 // =======================
+// Get Product by ID
+// =======================
+
+func TestGetProductByID_Success(t *testing.T) {
+	productMock := mocks.NewProducts(t)
+	productMock.On("GetProductByID", mock.Anything, 1).Return(models.Product{ID: 1, Name: "Cat food"}, nil)
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "1")
+	req := httptest.NewRequest(http.MethodGet, "/products/1", nil)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	w := httptest.NewRecorder()
+	handler := New(slog.Default(), productMock)
+	handler.GetProductByID(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+}
+
+func TestGetProductByID_NotFound(t *testing.T) {
+	productMock := mocks.NewProducts(t)
+	productMock.On("GetProductByID", mock.Anything, 1).Return(models.Product{}, storage.ErrNotFound)
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "1")
+	req := httptest.NewRequest(http.MethodGet, "/products/1", nil)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	w := httptest.NewRecorder()
+	handler := New(slog.Default(), productMock)
+	handler.GetProductByID(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", w.Code)
+	}
+}
+
+func TestGetProductByID_Error(t *testing.T) {
+	productMock := mocks.NewProducts(t)
+	productMock.On("GetProductByID", mock.Anything, 1).Return(models.Product{}, errors.New("DB error"))
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "1")
+	req := httptest.NewRequest(http.MethodGet, "/products/1", nil)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	w := httptest.NewRecorder()
+	handler := New(slog.Default(), productMock)
+	handler.GetProductByID(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
+}
+
+// =======================
 // Create Product
 // =======================
 
@@ -72,8 +132,8 @@ func TestCreateProduct_Success(t *testing.T) {
 
 	handler.CreateProduct(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", w.Code)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d", w.Code)
 	}
 
 }
