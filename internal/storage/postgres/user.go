@@ -37,7 +37,11 @@ func (s *Storage) GetUserByEmail(ctx context.Context, email string) (models.User
 	const fn = "storage.postgres.user.GetUserByEmail"
 
 	var user models.User
-	if err := s.db.QueryRow(ctx, `SELECT id, name, email FROM users WHERE email = $1`, email).Scan(&user.ID, &user.Name, &user.Email); err != nil {
+	if err := s.db.QueryRow(ctx, `SELECT id, name, email FROM users WHERE email = $1`, email).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return models.User{}, storage.ErrNotFound
 		}
