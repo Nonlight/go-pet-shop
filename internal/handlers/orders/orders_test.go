@@ -244,3 +244,94 @@ func TestGetOrdersByUserEmail_Error(t *testing.T) {
 		t.Fatalf("expected status 500, got %d", w.Code)
 	}
 }
+
+func TestPlaceOrder_Success(t *testing.T) {
+	ordersMock := mocks.NewOrders(t)
+	ordersMock.On("PlaceOrder", mock.Anything, "email@mail.ru", []models.OrderItem{{
+		ProductID: 1,
+		Quantity:  2,
+	}}).Return(3, nil)
+
+	body := `{"user_email": "email@mail.ru",
+"items": [
+{"product_id": 1,
+"quantity": 2}
+]}`
+	req := httptest.NewRequest(http.MethodPost, "/checkout", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handler := New(slog.Default(), ordersMock)
+	handler.PlaceOrder(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d", w.Code)
+	}
+
+}
+
+func TestPlaceOrder_BadRequest(t *testing.T) {
+	ordersMock := mocks.NewOrders(t)
+
+	body := `"user_email": "email@mail.ru",
+"items": [
+{"product_id": 1,
+"quantity": 2}
+]}`
+	req := httptest.NewRequest(http.MethodPost, "/checkout", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handler := New(slog.Default(), ordersMock)
+	handler.PlaceOrder(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestPlaceOrder_NotFound(t *testing.T) {
+	ordersMock := mocks.NewOrders(t)
+	ordersMock.On("PlaceOrder", mock.Anything, "email@mail.ru", []models.OrderItem{{
+		ProductID: 1,
+		Quantity:  2,
+	}}).Return(0, storage.ErrNotFound)
+
+	body := `{"user_email": "email@mail.ru",
+"items": [
+{"product_id": 1,
+"quantity": 2}
+]}`
+	req := httptest.NewRequest(http.MethodPost, "/checkout", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handler := New(slog.Default(), ordersMock)
+	handler.PlaceOrder(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", w.Code)
+	}
+
+}
+
+func TestPlaceOrder_Error(t *testing.T) {
+	ordersMock := mocks.NewOrders(t)
+	ordersMock.On("PlaceOrder", mock.Anything, "email@mail.ru", []models.OrderItem{{
+		ProductID: 1,
+		Quantity:  2,
+	}}).Return(0, errors.New("DB error"))
+
+	body := `{"user_email": "email@mail.ru",
+"items": [
+{"product_id": 1,
+"quantity": 2}
+]}`
+	req := httptest.NewRequest(http.MethodPost, "/checkout", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handler := New(slog.Default(), ordersMock)
+	handler.PlaceOrder(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d", w.Code)
+	}
+
+}

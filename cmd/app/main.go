@@ -70,19 +70,20 @@ func main() {
 	router.Post("/orders/{id}/items", ordersHandler.AddOrderItem)
 	router.Get("/orders/{id}", ordersHandler.GetOrderByID)
 	router.Get("/users/orders", ordersHandler.GetOrdersByUserEmail)
+	router.Post("/checkout", ordersHandler.PlaceOrder)
 
 	// Settings and started server
 	srv := &http.Server{
-		Addr:         cfg.HTTPServer.Address,
+		Addr:         cfg.Address,
 		Handler:      router,
-		ReadTimeout:  cfg.HTTPServer.Timeout,
-		WriteTimeout: cfg.HTTPServer.Timeout,
-		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
+		ReadTimeout:  cfg.Timeout,
+		WriteTimeout: cfg.Timeout,
+		IdleTimeout:  cfg.IdleTimeout,
 	}
 
 	// Запуск сервера в горутине для graceful shutdown
 	go func() {
-		log.Info("Starting server on", slog.String("address", cfg.HTTPServer.Address))
+		log.Info("Starting server on", slog.String("address", cfg.Address))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("Server error", slog.String("error", err.Error()))
 			os.Exit(1)

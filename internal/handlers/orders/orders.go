@@ -21,6 +21,7 @@ type Orders interface {
 	GetOrderByID(ctx context.Context, id int) (models.Order, error)
 	GetOrdersByUserEmail(ctx context.Context, email string) ([]models.Order, error)
 	GetOrderItemsByOrderID(ctx context.Context, orderID int) ([]models.OrderItem, error)
+	PlaceOrder(ctx context.Context, userEmail string, items []models.OrderItem) (orderID int, err error)
 }
 type Handler struct {
 	log     *slog.Logger
@@ -303,4 +304,85 @@ func (h *Handler) GetOrdersByUserEmail(w http.ResponseWriter, r *http.Request) {
 		slog.String("url", r.URL.String()))
 
 	render.JSON(w, r, orders)
+}
+
+func (h *Handler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
+	const fn = "handlers.order.placeOrder"
+
+	log := h.log.With(
+		slog.String("fn", fn),
+		slog.String("request_id", middleware.GetReqID(r.Context())))
+
+	type CheckoutRequest struct {
+		UserEmail string             `json:"user_email"`
+		Items     []models.OrderItem `json:"items"`
+	}
+
+	var checkoutRequest CheckoutRequest
+	if err := render.DecodeJSON(r.Body, &checkoutRequest); err != nil {
+		log.Error("failed to decode request body", slog.Any("error", err))
+		w.WriteHeader(http.StatusBadRequest)
+		render.JSON(w, r, map[string]string{
+			"error":   "Bad request",
+			"message": "Invalid request body",
+		})
+		return
+	}
+
+	if checkoutRequest.UserEmail == "" {
+		log.Error("user email is required")
+		w.WriteHeader(http.StatusBadRequest)
+		render.JSON(w, r, map[string]string{
+			"error":   "Bad request",
+			"message": "User email is required",
+		})
+		return
+	}
+
+	if len(checkoutRequest.Items) == 0 {
+		log.Error("items is required")
+		w.WriteHeader(http.StatusBadRequest)
+		render.JSON(w, r, map[string]string{
+			"error":   "Bad request",
+			"message": "Items is required",
+		})
+		return
+	}
+
+	orderId, err := h.storage.PlaceOrder(r.Context(), checkoutRequest.UserEmail, checkoutRequest.Items)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			log.Warn("resource not found", slog.Any("error", err))
+			w.WriteHeader(http.StatusNotFound)
+			render.JSON(w, r, map[string]string{
+				"error":   "Not found",
+				"message": "Resource not found",
+			})
+			return
+		}
+		if errors.Is(err, storage.ErrInvalidInput) {
+			log.Warn("invalid input", slog.Any("error", err))
+			w.WriteHeader(http.StatusBadRequest)
+			render.JSON(w, r, map[string]string{
+				"error":   "Bad request",
+				"message": "Invalid input",
+			})
+			return
+		}
+		log.Error("failed to place order", slog.Any("error", err))
+		w.WriteHeader(http.StatusInternalServerError)
+		render.JSON(w, r, map[string]string{
+			"error":   "Internal server error",
+			"message": "Failed to place order",
+		})
+		return
+	}
+
+	log.Info("Placed order successfully",
+		slog.String("url", r.URL.String()))
+	response := map[string]int{
+		"order_id": orderId,
+	}
+	w.WriteHeader(http.StatusCreated)
+	render.JSON(w, r, response)
 }
