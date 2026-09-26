@@ -19,7 +19,7 @@ func TestGetUserOrderHistory_Success(t *testing.T) {
 	ordersMock := mocks.NewAnalytics(t)
 	createdAt := time.Now()
 	ordersMock.On("GetUserOrderHistory", mock.Anything, "email@mail.ru").Return([]models.OrderDetail{{OrderID: 1, CreatedAt: createdAt, ProductName: "Cat Food",
-		Quantity: 2, Price: 200, TotalPrice: 400, TransactionStatus: "success"}}, nil)
+		Quantity: 2, Price: 200, TotalPrice: 400, TransactionStatus: "completed"}}, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/users/history?email=email@mail.ru", nil)
 	w := httptest.NewRecorder()
@@ -43,7 +43,7 @@ func TestGetUserOrderHistory_Success(t *testing.T) {
 			Quantity:          2,
 			Price:             200,
 			TotalPrice:        400,
-			TransactionStatus: "success",
+			TransactionStatus: "completed",
 		},
 	}
 

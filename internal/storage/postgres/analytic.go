@@ -46,6 +46,8 @@ func (s *Storage) GetPopularProducts(ctx context.Context) ([]models.PopularProdu
 	rows, err := s.db.Query(ctx, `SELECT p.id, p.name, SUM(o.quantity) AS total_sold
 FROM products p 
 JOIN order_items o ON p.id = o.product_id
+JOIN transactions t ON t.order_id = o.order_id
+WHERE t.status = 'completed'
 GROUP BY p.id, p.name
 ORDER BY total_sold DESC`)
 	if err != nil {
