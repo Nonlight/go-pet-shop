@@ -99,10 +99,6 @@ cp .env.example .env
 ```
 docker compose up -d
 ```
-5. Применить миграции:
-```
-task migrate
-```
 После запуска сервис доступен по адресу `http://localhost:8080`.
 
 ---
